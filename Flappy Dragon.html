@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Dragon - O Filhote de Dragão Roxo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;700;900&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f0a1c;
+            color: #ffffff;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Glassmorphism UI panel */
+        .glass-panel {
+            background: rgba(26, 16, 43, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(168, 85, 247, 0.2);
+        }
+
+        /* Arcade Button Effects */
+        .btn-arcade {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 0 6px 0 #581c87, 0 10px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-arcade:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #581c87, 0 14px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-arcade:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #581c87, 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Canvas Container */
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            max-height: 800px;
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 16px;
+            box-shadow: 0 0 50px rgba(147, 51, 234, 0.3);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom Scrollbar for non-essential text */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #a855f7;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-0 md:p-4 bg-slate-950">
+
+    <!-- Container Principal do Jogo -->
+    <div id="game-container" class="relative flex flex-col justify-between overflow-hidden bg-slate-900 border border-purple-900/50">
+        
+        <!-- Canvas para renderização 2D -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- HUD Superior (Pontuação em Tempo Real) -->
+        <div id="hud" class="absolute top-4 left-0 right-0 px-6 flex justify-between items-center pointer-events-none z-10 transition-opacity duration-300 opacity-0">
+            <div class="flex items-center space-x-2 bg-slate-900/80 backdrop-blur border border-purple-500/30 px-4 py-2 rounded-full shadow-lg">
+                <span class="text-amber-400 font-pixel text-xs">PONTOS</span>
+                <span id="score-display" class="text-2xl font-black text-purple-300">0</span>
+            </div>
+            
+            <div class="flex items-center space-x-2 bg-slate-900/80 backdrop-blur border border-amber-500/30 px-3 py-1.5 rounded-full shadow-lg">
+                <svg class="w-5 h-5 text-amber-400 fill-current" viewBox="0 0 20 20">
+                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
+                </svg>
+                <span id="gem-display" class="text-lg font-bold text-amber-300">0</span>
+            </div>
+        </div>
+
+        <!-- Tela de Início / Start Screen -->
+        <div id="start-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300">
+            <div class="glass-panel p-8 rounded-3xl w-full max-w-xs flex flex-col items-center space-y-6 transform hover:scale-[1.02] transition-transform">
+                
+                <!-- Título com Brilho -->
+                <div class="relative">
+                    <h1 class="text-3xl font-black italic tracking-wider text-transparent bg-clip-text bg-gradient-to-br from-purple-300 via-fuchsia-400 to-pink-500 drop-shadow-md">
+                        FLAPPY<br><span class="text-4xl text-amber-300 font-extrabold not-italic drop-shadow-[0_2px_10px_rgba(245,158,11,0.5)]">DRAGON</span>
+                    </h1>
+                    <div class="absolute -top-3 -right-3 text-2xl animate-bounce">🔥</div>
+                </div>
+
+                <p class="text-purple-200 text-sm font-medium leading-relaxed">
+                    Ajude o dragãozinho roxo a voar pelos castelos encantados!
+                </p>
+
+                <!-- Ícones de Instruções -->
+                <div class="bg-purple-950/50 border border-purple-500/30 rounded-2xl p-4 w-full text-xs text-purple-200/80 space-y-2">
+                    <div class="flex items-center justify-center space-x-2">
+                        <kbd class="px-2 py-1 bg-purple-900 border border-purple-400/30 rounded text-amber-300 font-pixel text-[10px]">ESPAÇO</kbd>
+                        <span>ou</span>
+                        <span class="text-amber-300 font-semibold">TOQUE</span>
+                        <span>para voar</span>
+                    </div>
+                    <div class="text-[11px] text-purple-300/60">Pegue gemas de mana para pontos bônus!</div>
+                </div>
+
+                <!-- Botão Jogar -->
+                <button id="start-btn" class="btn-arcade w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold text-lg rounded-2xl uppercase tracking-wider border-2 border-purple-300/40">
+                    Jogar Agora
+                </button>
+            </div>
+        </div>
+
+        <!-- Tela de Game Over / Result Screen -->
+        <div id="gameover-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 hidden">
+            <div class="glass-panel p-8 rounded-3xl w-full max-w-xs flex flex-col items-center space-y-5 animate-in fade-in zoom-in duration-200">
+                
+                <h2 class="text-3xl font-black text-red-400 tracking-wider drop-shadow-[0_2px_8px_rgba(239,68,68,0.5)]">
+                    FIM DE JOGO
+                </h2>
+
+                <div class="w-full bg-slate-900/80 border border-purple-500/30 rounded-2xl p-4 space-y-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-purple-300 font-medium">Pontuação:</span>
+                        <span id="final-score" class="text-2xl font-bold text-white">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-amber-300 font-medium">Gemas Coletadas:</span>
+                        <span id="final-gems" class="text-xl font-bold text-amber-400">0</span>
+                    </div>
+                    <hr class="border-purple-800/50">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-purple-400 font-medium">Melhor Pontuação:</span>
+                        <span id="best-score" class="text-2xl font-black text-amber-300">0</span>
+                    </div>
+                </div>
+
+                <!-- Botão Reiniciar -->
+                <button id="restart-btn" class="btn-arcade w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-lg rounded-2xl uppercase tracking-wider border-2 border-amber-200/40">
+                    Jogar Novamente
+                </button>
+            </div>
+        </div>
+
+        <!-- Botão Mute / Áudio -->
+        <button id="sound-btn" class="absolute bottom-4 right-4 z-30 p-3 bg-slate-900/80 hover:bg-slate-800 text-purple-300 rounded-full border border-purple-500/30 shadow-lg transition-all active:scale-95">
+            <svg id="sound-icon-on" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+            </svg>
+            <svg id="sound-icon-off" class="w-6 h-6 hidden text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
+            </svg>
+        </button>
+
+    </div>
+
+    <script>
+        /**
+         * Flappy Dragon - Jogo Completo em Canvas
+         * Sintetizador de Áudio Web Audio API Integrado
+         */
+
+        // --- SISTEMA DE ÁUDIO SINTETIZADO (Web Audio API) ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playFlap() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(380, this.ctx.currentTime + 0.12);
+
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            playScore() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+                osc.frequency.setValueAtTime(659.25, this.ctx.currentTime + 0.08); // E5
+
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            playGem() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime); // A5
+                osc.frequency.setValueAtTime(1760, this.ctx.currentTime + 0.08); // A6
+
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+
+            playHit() {
+                if (this.muted || !this.ctx) return;
+                
+                // Ruído branco sintetizado para o impacto
+                const bufferSize = this.ctx.sampleRate * 0.2;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+                filter.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.2);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start();
+                noise.stop(this.ctx.currentTime + 0.2);
+            }
+        }
+
+        const audio = new SoundFX();
+
+        // --- VARIÁVEIS E CONFIGURAÇÕES PRINCIPAIS ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const hud = document.getElementById('hud');
+        const scoreDisplay = document.getElementById('score-display');
+        const gemDisplay = document.getElementById('gem-display');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const finalGemsDisplay = document.getElementById('final-gems');
+        const bestScoreDisplay = document.getElementById('best-score');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const soundBtn = document.getElementById('sound-btn');
+
+        let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+        let score = 0;
+        let gems = 0;
+        let highScore = parseInt(localStorage.getItem('flappy_dragon_high') || '0', 10);
+
+        // Ajuste dinâmico de resolução do Canvas
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- SISTEMA DE PARTÍCULAS (Fogo, Fumaça, Mana Sparkles) ---
+        class Particle {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'fire', 'smoke', 'sparkle'
+                this.size = type === 'sparkle' ? Math.random() * 4 + 2 : Math.random() * 8 + 4;
+                this.vx = (Math.random() - 0.5) * 1.5 - 2; // Sopra para trás
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.03 + 0.02;
+
+                if (type === 'fire') {
+                    this.color = ['#f97316', '#ef4444', '#eab308'][Math.floor(Math.random() * 3)];
+                } else if (type === 'smoke') {
+                    this.color = '#64748b';
+                } else {
+                    this.color = ['#c084fc', '#f472b6', '#38bdf8'][Math.floor(Math.random() * 3)];
+                }
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+                this.size = Math.max(0, this.size - 0.1);
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        let particles = [];
+
+        // --- CLASSE DO DRAGÃO ROXO ---
+        class Dragon {
+            constructor() {
+                this.x = 80;
+                this.y = canvas.height / 2;
+                this.width = 38;
+                this.height = 32;
+                this.gravity = 0.42;
+                this.velocity = 0;
+                this.jumpStrength = -7.8;
+                this.rotation = 0;
+                this.wingAngle = 0;
+                this.wingSpeed = 0.25;
+            }
+
+            reset() {
+                this.y = canvas.height / 2;
+                this.velocity = 0;
+                this.rotation = 0;
+            }
+
+            flap() {
+                this.velocity = this.jumpStrength;
+                audio.playFlap();
+
+                // Gera rajada de fogo/fumaça ao bater as asas
+                for (let i = 0; i < 6; i++) {
+                    particles.push(new Particle(this.x - 10, this.y + 5, Math.random() > 0.4 ? 'fire' : 'smoke'));
+                }
+            }
+
+            update() {
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+
+                // Suavização da Rotação baseada na velocidade vertical
+                if (this.velocity < 0) {
+                    this.rotation = Math.max(-0.45, this.rotation - 0.08);
+                } else {
+                    this.rotation = Math.min(0.7, this.rotation + 0.04);
+                }
+
+                // Animação das Asas
+                this.wingAngle += this.wingSpeed;
+
+                // Partículas contínuas de brilho do dragão
+                if (Math.random() < 0.3) {
+                    particles.push(new Particle(this.x - 12, this.y + Math.random() * 10 - 5, 'sparkle'));
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // --- DESENHO DO DRAGÃO EM VETOR (HTML5 Canvas) ---
+                
+                // Cauda
+                ctx.fillStyle = '#7e22ce';
+                ctx.beginPath();
+                ctx.moveTo(-12, 2);
+                ctx.lineTo(-24, -4);
+                ctx.lineTo(-20, 8);
+                ctx.closePath();
+                ctx.fill();
+
+                // Espinho da cauda (Amarelo)
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.moveTo(-24, -4);
+                ctx.lineTo(-28, -2);
+                ctx.lineTo(-22, 2);
+                ctx.closePath();
+                ctx.fill();
+
+                // Corpo
+                ctx.fillStyle = '#a855f7'; // Roxo claro
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Barriguinha fofa (Rosa/Creme)
+                ctx.fillStyle = '#f472b6';
+                ctx.beginPath();
+                ctx.ellipse(4, 4, 10, 8, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Asas (Batendo com Seno)
+                const wingY = Math.sin(this.wingAngle) * 8;
+                ctx.fillStyle = '#c084fc';
+                ctx.beginPath();
+                ctx.moveTo(-2, -4);
+                ctx.quadraticCurveTo(-10, -22 + wingY, -22, -10 + wingY);
+                ctx.quadraticCurveTo(-12, -4, -2, -4);
+                ctx.fill();
+                ctx.strokeStyle = '#6b21a8';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Cabeça
+                ctx.fillStyle = '#a855f7';
+                ctx.beginPath();
+                ctx.arc(12, -6, 11, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Chifrinho fofo (Dourado)
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.moveTo(8, -14);
+                ctx.lineTo(12, -21);
+                ctx.lineTo(15, -14);
+                ctx.closePath();
+                ctx.fill();
+
+                // Olho grande estilo anime/fofo
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(15, -8, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#0f172a'; // Pupila
+                ctx.beginPath();
+                ctx.arc(16, -8, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff'; // Brilho do olho
+                ctx.beginPath();
+                ctx.arc(17, -9, 1, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Bochecha rosada
+                ctx.fillStyle = 'rgba(244, 114, 182, 0.5)';
+                ctx.beginPath();
+                ctx.arc(13, -2, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Narina / Focinho com pequena fumaça
+                ctx.fillStyle = '#581c87';
+                ctx.beginPath();
+                ctx.arc(21, -5, 1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            getBounds() {
+                return {
+                    x: this.x - 12,
+                    y: this.y - 12,
+                    width: 26,
+                    height: 24
+                };
+            }
+        }
+
+        // --- CLASSE DE OBSTÁCULOS (Pilares de Castelo) & GEMAS ---
+        class Pillar {
+            constructor(x) {
+                this.x = x;
+                this.width = 64;
+                this.gap = 145; // Espaço vertical para o dragão passar
+                this.passed = false;
+
+                // Definir altura da abertura aleatoriamente
+                const minHeight = 80;
+                const maxHeight = canvas.height - 180 - this.gap;
+                this.topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                this.bottomY = this.topHeight + this.gap;
+
+                // Item Coletável (Gema de Mana) dentro do pilar
+                this.hasGem = Math.random() < 0.6; // 60% de chance de ter gema
+                this.gemCollected = false;
+                this.gemY = this.topHeight + this.gap / 2;
+                this.gemAngle = 0;
+            }
+
+            update(speed) {
+                this.x -= speed;
+                this.gemAngle += 0.05;
+            }
+
+            draw(ctx) {
+                // Desenhar Pilar Superior (Torre de Castelo caindo para baixo)
+                this.drawSinglePillar(ctx, this.x, 0, this.width, this.topHeight, true);
+
+                // Desenhar Pilar Inferior (Torre brotando do chão)
+                this.drawSinglePillar(ctx, this.x, this.bottomY, this.width, canvas.height - this.bottomY - 50, false);
+
+                // Desenhar Gema se presente e não coletada
+                if (this.hasGem && !this.gemCollected) {
+                    this.drawGem(ctx, this.x + this.width / 2, this.gemY + Math.sin(this.gemAngle) * 5);
+                }
+            }
+
+            drawSinglePillar(ctx, x, y, width, height, isTop) {
+                ctx.save();
+
+                // Corpo do Pilar de Pedra Castelo
+                const gradient = ctx.createLinearGradient(x, 0, x + width, 0);
+                gradient.addColorStop(0, '#334155');
+                gradient.addColorStop(0.3, '#64748b');
+                gradient.addColorStop(0.8, '#475569');
+                gradient.addColorStop(1, '#1e293b');
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, y, width, height);
+
+                // Detalhes de Tijolos de Pedra
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+                ctx.lineWidth = 2;
+                const brickH = 16;
+                for (let i = y; i < y + height; i += brickH) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, i);
+                    ctx.lineTo(x + width, i);
+                    ctx.stroke();
+                }
+
+                // Borda / Capitel do Pilar
+                const capHeight = 22;
+                const capOverlap = 6;
+                const capY = isTop ? y + height - capHeight : y;
+
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(x - capOverlap, capY, width + capOverlap * 2, capHeight);
+                ctx.strokeStyle = '#0f172a';
+                ctx.strokeRect(x - capOverlap, capY, width + capOverlap * 2, capHeight);
+
+                // Musgo/Vinhas Mágicas penduradas
+                ctx.fillStyle = '#10b981';
+                ctx.beginPath();
+                if (isTop) {
+                    ctx.arc(x + 10, capY + capHeight, 6, 0, Math.PI);
+                    ctx.arc(x + 28, capY + capHeight, 10, 0, Math.PI);
+                    ctx.arc(x + 48, capY + capHeight, 7, 0, Math.PI);
+                } else {
+                    ctx.arc(x + 12, capY, 7, Math.PI, 0);
+                    ctx.arc(x + 35, capY, 11, Math.PI, 0);
+                    ctx.arc(x + 52, capY, 6, Math.PI, 0);
+                }
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            drawGem(ctx, x, y) {
+                ctx.save();
+                ctx.translate(x, y);
+
+                // Brilho ao redor da gema
+                const glowGradient = ctx.createRadialGradient(0, 0, 2, 0, 0, 15);
+                glowGradient.addColorStop(0, 'rgba(251, 191, 36, 0.8)');
+                glowGradient.addColorStop(1, 'rgba(251, 191, 36, 0)');
+                ctx.fillStyle = glowGradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, 16, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Desenho do Diamante / Gema Dourada
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(8, -2);
+                ctx.lineTo(0, 10);
+                ctx.lineTo(-8, -2);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#fef08a'; // Brilho interno
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(4, -2);
+                ctx.lineTo(0, 10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            checkCollision(dragonBounds) {
+                // Teste simples de caixa AABB para o pilar superior e inferior
+                const topPillar = { x: this.x - 4, y: 0, width: this.width + 8, height: this.topHeight };
+                const bottomPillar = { x: this.x - 4, y: this.bottomY, width: this.width + 8, height: canvas.height - this.bottomY };
+
+                function intersect(r1, r2) {
+                    return !(r2.x > r1.x + r1.width ||
+                             r2.x + r2.width < r1.x ||
+                             r2.y > r1.y + r1.height ||
+                             r2.y + r2.height < r1.y);
+                }
+
+                return intersect(dragonBounds, topPillar) || intersect(dragonBounds, bottomPillar);
+            }
+
+            checkGemCollection(dragonBounds) {
+                if (!this.hasGem || this.gemCollected) return false;
+
+                const gemRadius = 12;
+                const gemCenter = { x: this.x + this.width / 2, y: this.gemY };
+
+                const distX = Math.abs(gemCenter.x - (dragonBounds.x + dragonBounds.width / 2));
+                const distY = Math.abs(gemCenter.y - (dragonBounds.y + dragonBounds.height / 2));
+
+                if (distX < (dragonBounds.width / 2 + gemRadius) && distY < (dragonBounds.height / 2 + gemRadius)) {
+                    this.gemCollected = true;
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        // --- GERENCIADOR DO JOGO E PARALLAX ---
+        const dragon = new Dragon();
+        let pillars = [];
+        let gameSpeed = 2.4;
+        let groundOffset = 0;
+        let mountainOffset = 0;
+        let cloudOffset = 0;
+
+        function spawnPillars() {
+            const minSpacing = 210;
+            if (pillars.length === 0 || canvas.width - pillars[pillars.length - 1].x >= minSpacing) {
+                pillars.push(new Pillar(canvas.width + 20));
+            }
+        }
+
+        // Renderização do Cenario Parallax Fantasy
+        function drawBackground(ctx) {
+            // Céu com gradiente crepúsculo/mágico
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGradient.addColorStop(0, '#1e1b4b');
+            skyGradient.addColorStop(0.4, '#3b0764');
+            skyGradient.addColorStop(0.8, '#581c87');
+            skyGradient.addColorStop(1, '#2e1065');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Nuvens Distantes (Parallax Lento)
+            ctx.fillStyle = 'rgba(216, 180, 254, 0.15)';
+            cloudOffset = (cloudOffset + 0.2) % canvas.width;
+            for (let i = -1; i < 2; i++) {
+                const x = i * canvas.width - cloudOffset;
+                ctx.beginPath();
+                ctx.arc(x + 80, 100, 40, 0, Math.PI * 2);
+                ctx.arc(x + 130, 90, 55, 0, Math.PI * 2);
+                ctx.arc(x + 190, 110, 35, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Montanhas Distantes e Castelo Sombrio (Parallax Médio)
+            mountainOffset = (mountainOffset + 0.5) % canvas.width;
+            ctx.fillStyle = '#2e1065';
+            for (let i = -1; i < 2; i++) {
+                const x = i * canvas.width - mountainOffset;
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - 50);
+                ctx.lineTo(x + 100, canvas.height - 220);
+                ctx.lineTo(x + 180, canvas.height - 140);
+                ctx.lineTo(x + 280, canvas.height - 260);
+                ctx.lineTo(x + 380, canvas.height - 110);
+                ctx.lineTo(x + canvas.width, canvas.height - 50);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        function drawGround(ctx) {
+            const groundHeight = 50;
+            const groundY = canvas.height - groundHeight;
+
+            groundOffset = (groundOffset + gameSpeed) % 24;
+
+            // Chão de grama/pedra
+            ctx.fillStyle = '#15803d'; // Grama topo
+            ctx.fillRect(0, groundY, canvas.width, 12);
+
+            ctx.fillStyle = '#1e293b'; // Terra/Pedra
+            ctx.fillRect(0, groundY + 12, canvas.width, groundHeight - 12);
+
+            // Textura contínua do chão
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let x = -groundOffset; x < canvas.width + 24; x += 24) {
+                ctx.moveTo(x, groundY);
+                ctx.lineTo(x + 12, groundY + 12);
+            }
+            ctx.stroke();
+
+            // Linha divisória superior
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+        }
+
+        // --- LOOP PRINCIPAL DO JOGO ---
+        function gameLoop() {
+            // Limpa o canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Desenha o Fundo Fantasy
+            drawBackground(ctx);
+
+            if (gameState === 'PLAYING') {
+                // Atualiza e Desenha Dragão
+                dragon.update();
+
+                // Colisão com o chão ou teto
+                if (dragon.y + 12 >= canvas.height - 50 || dragon.y - 12 <= 0) {
+                    gameOver();
+                }
+
+                // Gerencia Pilares
+                spawnPillars();
+
+                for (let i = pillars.length - 1; i >= 0; i--) {
+                    const pilar = pillars[i];
+                    pilar.update(gameSpeed);
+                    pilar.draw(ctx);
+
+                    // Verifica Colisão
+                    if (pilar.checkCollision(dragon.getBounds())) {
+                        gameOver();
+                    }
+
+                    // Coleta de Gema
+                    if (pilar.checkGemCollection(dragon.getBounds())) {
+                        gems += 1;
+                        score += 5; // Bônus de pontos por gema
+                        gemDisplay.textContent = gems;
+                        scoreDisplay.textContent = score;
+                        audio.playGem();
+
+                        // Partículas de brilho na coleta
+                        for (let k = 0; k < 12; k++) {
+                            particles.push(new Particle(dragon.x, dragon.y, 'sparkle'));
+                        }
+                    }
+
+                    // Pontuação por ultrapassar o pilar
+                    if (!pilar.passed && pilar.x + pilar.width < dragon.x) {
+                        pilar.passed = true;
+                        score += 1;
+                        scoreDisplay.textContent = score;
+                        audio.playScore();
+                    }
+
+                    // Remove pilares fora da tela
+                    if (pilar.x + pilar.width < -50) {
+                        pillars.splice(i, 1);
+                    }
+                }
+
+                // Atualiza e desenha partículas
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].draw(ctx);
+                    if (particles[i].life <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+            } else {
+                // No menu/start screen, o dragão fica flutuando suavemente
+                dragon.y = canvas.height / 2 + Math.sin(Date.now() / 300) * 8;
+                dragon.wingAngle += 0.15;
+            }
+
+            // Desenha o dragão
+            dragon.draw(ctx);
+
+            // Desenha o chão no topo dos pilares
+            drawGround(ctx);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- CONTROLE DE ESTADOS DO JOGO ---
+        function startGame() {
+            audio.init();
+            score = 0;
+            gems = 0;
+            pillars = [];
+            particles = [];
+            dragon.reset();
+
+            scoreDisplay.textContent = '0';
+            gemDisplay.textContent = '0';
+
+            startScreen.classList.add('opacity-0', 'pointer-events-none');
+            gameoverScreen.classList.add('hidden');
+            hud.classList.remove('opacity-0');
+
+            gameState = 'PLAYING';
+            dragon.flap();
+        }
+
+        function gameOver() {
+            if (gameState === 'GAMEOVER') return;
+
+            gameState = 'GAMEOVER';
+            audio.playHit();
+
+            // Atualiza Highscore
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('flappy_dragon_high', highScore.toString());
+            }
+
+            // Atualiza UI da tela de Game Over
+            finalScoreDisplay.textContent = score;
+            finalGemsDisplay.textContent = gems;
+            bestScoreDisplay.textContent = highScore;
+
+            setTimeout(() => {
+                gameoverScreen.classList.remove('hidden');
+            }, 400);
+        }
+
+        function handleInput(e) {
+            // Evita scroll por espaço ou toque
+            if (e && e.type === 'keydown' && e.code !== 'Space') return;
+            if (e && e.cancelable) e.preventDefault();
+
+            audio.init();
+
+            if (gameState === 'PLAYING') {
+                dragon.flap();
+            } else if (gameState === 'START') {
+                startGame();
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') handleInput(e);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            handleInput(e);
+        }, { passive: false });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) handleInput(e);
+        });
+
+        startBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        // Mute / Unmute
+        soundBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.init();
+            audio.muted = !audio.muted;
+
+            document.getElementById('sound-icon-on').classList.toggle('hidden', audio.muted);
+            document.getElementById('sound-icon-off').classList.toggle('hidden', !audio.muted);
+        });
+
+        // Inicia o loop do jogo
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
